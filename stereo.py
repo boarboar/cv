@@ -82,7 +82,14 @@ class StreamClientThread(threading.Thread):
             while not self.__stop and self.frame is not None:
                 cv2.putText(self.frame, "L" if self.__idx == 0 else "R", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (23, 230, 210), 1)
                 self.bmp.CopyFromBuffer(self.frame)
-                self.wnd.SetBitmap(self.bmp)
+                #self.wnd.SetBitmap(self.bmp)
+                #UGLY
+                Size  = self.wnd.ClientSize
+                image=wx.ImageFromBitmap(self.bmp)
+                image = image.Scale(Size[0], Size[1], wx.IMAGE_QUALITY_HIGH)
+                bmp = wx.BitmapFromImage(image)
+                self.wnd.SetBitmap(bmp)
+                
                 self.frame = self.loadimg()
 
 class viewWindow(wx.Frame):
@@ -90,7 +97,7 @@ class viewWindow(wx.Frame):
             # super(viewWindow,self).__init__(parent)
             wx.Frame.__init__(self, parent)
 
-            self.imgSizer = (640, 480)
+            self.imgSizer = (320, 240)
             self.pnl = wx.Panel(self)
             self.vbox = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -102,8 +109,10 @@ class viewWindow(wx.Frame):
             self.imageBit1 = wx.Bitmap(self.image)
             self.staticBit1 = wx.StaticBitmap(self.pnl, wx.ID_ANY, self.imageBit1)
 
-            self.vbox.Add(self.staticBit0)
-            self.vbox.Add(self.staticBit1)
+            self.vbox.Add(self.staticBit0, 1, flag=wx.EXPAND)
+            self.vbox.Add(self.staticBit1, 1, flag=wx.EXPAND)
+            #self.staticBit0.ScaleMode(wx.StaticBitmap.Scale_AspectFit)
+            #self.staticBit1.ScaleMode(wx.StaticBitmap.Scale_AspectFit)
 
             self.SetBackgroundColour('black')
             self.SetBackgroundStyle(wx.BG_STYLE_CUSTOM)
@@ -111,6 +120,7 @@ class viewWindow(wx.Frame):
             #self.pnl.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
             #self.staticBit0.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
             #self.staticBit1.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
+            # wx.EVT_SIZE or wx.EVT_SIZING
 
             #self.SetSize(self.imgSizer)
             self.pnl.SetSizer(self.vbox)

@@ -87,9 +87,8 @@ class StreamClientThread(threading.Thread):
                 self.wnd.Update(self.frame,  "L" if self.__idx == 0 else "R")
                 
                 
-class jpegWnd(wx.StaticBitmap) :
-    def __init__(self, parent, imgSizer):
-        # self.bmp = wx.Bitmap(wx.Image(imgSizer[0], imgSizer[1]))        
+class bmpWnd(wx.StaticBitmap) :
+    def __init__(self, parent, imgSizer):      
         wx.StaticBitmap.__init__(self, parent, wx.ID_ANY, wx.Bitmap(wx.Image(imgSizer[0], imgSizer[1])))
         self.SetMinSize(imgSizer)
         self.ScaleMode(wx.StaticBitmap.Scale_AspectFit)
@@ -108,7 +107,7 @@ class jpegWnd(wx.StaticBitmap) :
                 self.bmp = wx.Bitmap(wx.Image(size[0], size[1]))
 
         img = cv2.resize(frame, (self.bmp.GetWidth(), self.bmp.GetHeight()), cv2.INTER_AREA)
-        cv2.putText(img, label, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (23, 230, 210), 1)
+        cv2.putText(img, label, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
         self.bmp.CopyFromBuffer(img)       
         self.SetBitmap(self.bmp)
         
@@ -117,7 +116,7 @@ class jpegWnd(wx.StaticBitmap) :
     def OnEraseBackground(self, event):
         pass
     def OnSize(self, event):
-        print("OnSize")
+        #print("OnSize")
         self.chgSize = True
 
     
@@ -126,15 +125,18 @@ class viewWindow(wx.Frame):
             # super(viewWindow,self).__init__(parent)
             wx.Frame.__init__(self, parent)
 
-            #self.imgSizer = (320, 240)
+            sizer = (320, 240)
             self.pnl = wx.Panel(self)
-            self.vbox = wx.BoxSizer(wx.HORIZONTAL)
- 
-            self.staticBit0 = jpegWnd(self.pnl, (320, 240))
-            self.staticBit1 = jpegWnd(self.pnl, (320, 240))
+            #self.sbox = wx.BoxSizer(wx.HORIZONTAL)
+            self.sbox = wx.GridSizer(2)
             
-            self.vbox.Add(self.staticBit0, 1, flag=wx.EXPAND)
-            self.vbox.Add(self.staticBit1, 1, flag=wx.EXPAND)
+            self.staticBit0 = bmpWnd(self.pnl, sizer)
+            self.staticBit1 = bmpWnd(self.pnl, sizer)
+            self.staticBit2 = bmpWnd(self.pnl, sizer)
+            
+            self.sbox.Add(self.staticBit0, 1, flag=wx.EXPAND)
+            self.sbox.Add(self.staticBit1, 1, flag=wx.EXPAND)
+            self.sbox.Add(self.staticBit2, 1, flag=wx.EXPAND)
 
 
             self.SetBackgroundColour('black')
@@ -142,20 +144,20 @@ class viewWindow(wx.Frame):
             self.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
             self.pnl.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
  
-            self.pnl.SetSizer(self.vbox)
-            self.vbox.Fit(self)
+            self.pnl.SetSizer(self.sbox)
+            self.sbox.Fit(self)
             self.Show()
+
+            #proxy = {'https': 'proxy.reksoft.ru:3128'}
+            proxy = None
+            #addr0 = "http://192.168.1.134"
+            #addr1 = "http://192.168.1.135"
+            addr0 = "https://webcam1.lpl.org/axis-cgi/mjpg/video.cgi"
+            addr1 = "https://webcam1.lpl.org/axis-cgi/mjpg/video.cgi"
             
-            #self.streamthread0 = StreamClientThread(0, self.staticBit0, "http://192.168.1.134", None)
-            #self.streamthread1 = StreamClientThread(1, self.staticBit1, "http://192.168.1.135", None)
+            self.streamthread0 =StreamClientThread(0, self.staticBit0, addr0, proxy )
+            self.streamthread1 =StreamClientThread(1, self.staticBit1, addr1, proxy )
 
-
-            self.streamthread0 =StreamClientThread(0, self.staticBit0, 
-                                                  "https://webcam1.lpl.org/axis-cgi/mjpg/video.cgi",
-                                                  {'https': 'proxy.reksoft.ru:3128'} )
-            self.streamthread1 =StreamClientThread(1, self.staticBit1, 
-                                                  "https://webcam1.lpl.org/axis-cgi/mjpg/video.cgi",
-                                                  {'https': 'proxy.reksoft.ru:3128'} )
             self.streamthread0.start()            
             self.streamthread1.start()
             

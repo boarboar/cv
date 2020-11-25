@@ -12,10 +12,24 @@ import ssl
 # py -m pip install -U opencv-python
 #
 
-#RedrawEvent, EVT_RDR_EVENT = wx.lib.newevent.NewEvent()
+RedrawEvent, EVT_RDR_EVENT = wx.lib.newevent.NewEvent()
 
+class DepthViewer():
+    def __init__(self, wnd):
+        self.wnd = wnd
+        self.frameL = None
+        self.frameR = None
+    def Update(self, frame, idx):
+        if idx == 0 :
+            self.frameL = frame
+        else :
+            self.frameR = frame
+            
+        self.wnd.Update(frame, "D")  #test     
+        pass
+    
 class StreamClientThread(threading.Thread):
-    def __init__(self, idx, wnd, url, proxysetting):
+    def __init__(self, idx, wnd, url, proxysetting, dv = None):
         threading.Thread.__init__(self)
         #self.__lock = threading.Lock()
         self.wnd=wnd
@@ -25,6 +39,7 @@ class StreamClientThread(threading.Thread):
         self.__idx = idx
         self.stream=None
         self.bytes=b''
+        self.dv = dv
         self.setDaemon(1)
 
     def stop(self) : self.__stop=True
@@ -85,6 +100,8 @@ class StreamClientThread(threading.Thread):
                 if self.frame is None:
                     break                
                 self.wnd.Update(self.frame,  "L" if self.__idx == 0 else "R")
+                if self.dv is not None:
+                    self.dv.Update(self.frame, self.__idx)
                 
                 
 class bmpWnd(wx.StaticBitmap) :
@@ -94,6 +111,7 @@ class bmpWnd(wx.StaticBitmap) :
         self.ScaleMode(wx.StaticBitmap.Scale_AspectFit)
         self.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
         self.Bind(wx.EVT_SIZE, self.OnSize)
+        self.Bind(EVT_RDR_EVENT, self.onRedrawEvent)
         self.SetBackgroundColour('black')
         self.SetBackgroundStyle(wx.BG_STYLE_CUSTOM)
         self.chgSize = True
@@ -109,10 +127,13 @@ class bmpWnd(wx.StaticBitmap) :
         img = cv2.resize(frame, (self.bmp.GetWidth(), self.bmp.GetHeight()), cv2.INTER_AREA)
         cv2.putText(img, label, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
         self.bmp.CopyFromBuffer(img)       
-        self.SetBitmap(self.bmp)
+        #self.SetBitmap(self.bmp)
+        wx.PostEvent(self, RedrawEvent(bmp=self.bmp))
         
+    def onRedrawEvent(self, evt):
+        self.SetBitmap(evt.bmp)
         pass
-            
+    
     def OnEraseBackground(self, event):
         pass
     def OnSize(self, event):
@@ -148,6 +169,8 @@ class viewWindow(wx.Frame):
             self.sbox.Fit(self)
             self.Show()
 
+            self.dv = DepthViewer(self.staticBit2)
+
             #proxy = {'https': 'proxy.reksoft.ru:3128'}
             proxy = None
             #addr0 = "http://192.168.1.134"
@@ -155,8 +178,8 @@ class viewWindow(wx.Frame):
             addr0 = "https://webcam1.lpl.org/axis-cgi/mjpg/video.cgi"
             addr1 = "https://webcam1.lpl.org/axis-cgi/mjpg/video.cgi"
             
-            self.streamthread0 =StreamClientThread(0, self.staticBit0, addr0, proxy )
-            self.streamthread1 =StreamClientThread(1, self.staticBit1, addr1, proxy )
+            self.streamthread0 =StreamClientThread(0, self.staticBit0, addr0, proxy, self.dv )
+            self.streamthread1 =StreamClientThread(1, self.staticBit1, addr1, proxy, self.dv )
 
             self.streamthread0.start()            
             self.streamthread1.start()

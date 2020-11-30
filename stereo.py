@@ -21,11 +21,22 @@ class DepthViewer():
         self.frameR = None
     def Update(self, frame, idx):
         if idx == 0 :
-            self.frameL = frame
+            #self.frameL = frame
+            self.frameL = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)            
         else :
-            self.frameR = frame
-            
-        self.wnd.Update(frame, "D")  #test     
+            #self.frameR = frame
+            self.frameR = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        if self.frameL is not None and self.frameR is not None :
+            try:
+                stereo = cv2.StereoBM_create(numDisparities=16, blockSize=15)
+                disparity = stereo.compute(self.frameL, self.frameR) # int16! need uint8 to display
+                #print('disparity computed ', str(self.frameL.shape), ' - ', str(self.frameR.shape), ' -> ', str(disparity.shape))
+                #print(str(self.frameL.dtype), "  ", str(disparity.dtype))
+                dout = disparity.astype(np.uint8)
+                img = cv2.merge([dout, dout, dout])
+                self.wnd.Update(img, "D")
+            except Exception as e:
+                print('failed at stereo.compute: with ', e)
         pass
     
 class StreamClientThread(threading.Thread):
@@ -61,7 +72,7 @@ class StreamClientThread(threading.Thread):
                     step = "convert"     
                     img = cv2.imdecode(np.frombuffer(jpg, dtype=np.uint8),cv2.IMREAD_COLOR)
                     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB, img)
-                    print("read frame")
+                    print("read frame " + str(img.shape))
                     return img
                     
             except Exception as e:
@@ -115,16 +126,19 @@ class bmpWnd(wx.StaticBitmap) :
         self.SetBackgroundColour('black')
         self.SetBackgroundStyle(wx.BG_STYLE_CUSTOM)
         self.chgSize = True
+        self.bmp = None
         
     def Update(self, frame, label):
-        if self.chgSize :
+        if self.chgSize or self.bmp is None:
             self.chgSize = False            
             size  = self.ClientSize
             if size[0] >= 320 and size[1] >= 240 :
-                print("recreate bmp")
+                print("recreate bmp ", str(size))
                 self.bmp = wx.Bitmap(wx.Image(size[0], size[1]))
 
+        print("Update " + str(frame.shape) + " as " + str((self.bmp.GetWidth(), self.bmp.GetHeight())))
         img = cv2.resize(frame, (self.bmp.GetWidth(), self.bmp.GetHeight()), cv2.INTER_AREA)
+        #img = frame
         cv2.putText(img, label, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
         self.bmp.CopyFromBuffer(img)       
         #self.SetBitmap(self.bmp)
